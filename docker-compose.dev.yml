@@ -6,12 +6,13 @@ services:
         build:
             context: .
             dockerfile: Dockerfile_app
-        container_name: web
+        image: ${IMAGE_PREFIX}_web:${IMAGE_VERSION}
+        container_name: ${IMAGE_PREFIX}_web
         command: uvicorn main:app --host 0.0.0.0 --port 8000
         volumes:
-          - ./app:/app
+            - ./app:/app
         ports:
-            - "8000:8000"
+            - "${PORT_WEB}:8000"
         env_file:
             - .env
         restart: always
@@ -20,14 +21,16 @@ services:
 
     redis:
         image: redis:latest
+        container_name: "${IMAGE_PREFIX}_redis"
         ports:
-            - "6379:6379"
+            - "${PORT_REDIS}:6379"
 
     celery_worker:
-        container_name: "celery_worker"
+        container_name: ${IMAGE_PREFIX}_celery_worker
         build:
             context: .
             dockerfile: Dockerfile_app
+        image: ${IMAGE_PREFIX}_worker:${IMAGE_VERSION}
         command: celery -A tasks.celery_worker worker --pool=solo --loglevel=info
         volumes:
             - ./app:/app
@@ -35,17 +38,22 @@ services:
             - redis
             - web
         restart: always
+        env_file:
+            - .env
 
     flower:
-        container_name: "flower"
+        container_name: ${IMAGE_PREFIX}_flower
         build:
             context: .
             dockerfile: Dockerfile_app
+        image: ${IMAGE_PREFIX}_flower:${IMAGE_VERSION}
         command: celery -A tasks.celery_worker flower
         volumes:
             - ./app:/app
         ports:
-            - "5556:5555"
+            - "${PORT_FLOWER}:5555"
+        env_file:
+            - .env
         depends_on:
             - redis
             - web
@@ -54,10 +62,10 @@ services:
     db:
         hostname: db
         image: postgres:15
-        container_name: database
+        container_name: ${IMAGE_PREFIX}_database
         volumes:
             - ./data/db:/var/lib/postgresql/data
         ports:
-            - "5432:5432"
+            - "${PORT_POSTGRES}:5432"
         env_file:
             - .env
